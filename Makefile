@@ -1,7 +1,7 @@
 # ==============================================================================
 # Main
 
-create-default-env:
+copy-default-env:
 	cp example.env .env
 
 run-mock-external:

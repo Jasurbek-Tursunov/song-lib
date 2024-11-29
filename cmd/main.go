@@ -9,7 +9,7 @@ import (
 
 // @title Song Library API
 // @version 1.0
-// @host localhost:8081
+
 // @BasePath /
 func main() {
 	cfg := config.MustLoad()
