@@ -1,0 +1,8 @@
+basePath: /
+host: http://localhost:8081
+info:
+  contact: {}
+  title: Song Library API
+  version: "1.0"
+paths: {}
+swagger: "2.0"

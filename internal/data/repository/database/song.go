@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"song-lib/internal/domain/entity"
 	"time"
 )
@@ -16,21 +17,25 @@ func NewSongRepository(db *sql.DB) *SongRepository {
 	return &SongRepository{db: db}
 }
 
-func (r *SongRepository) List(filters entity.Filters) ([]*entity.Song, error) {
+func (r *SongRepository) List(filters entity.Filters, paginate entity.Paginator) ([]*entity.Song, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	query := `SELECT id, group, song, release_date, link 
-           WHERE (LOWER(group)=LOWER($1) OR $1 = '')
-			AND (LOWER(song)=LOWER($2) OR $2 = '')
-			AND (release_date=$3 OR $3 = '')
-			AND (LOWER(link)=LOWER($4) OR $4 = '')`
+	query := `SELECT id, group_name, song_name, release_date, link FROM song
+           WHERE (LOWER(group_name)=LOWER($1) OR $1 = '')
+			AND (LOWER(song_name)=LOWER($2) OR $2 = '')
+			AND (release_date=CAST(NULLIF($3, '') AS DATE) OR $3 = '')
+			AND (LOWER(link)=LOWER($4) OR $4 = '')
+			ORDER BY id ASC
+			LIMIT $5 OFFSET $6`
 
 	args := []any{
 		filters.Group,
 		filters.Song,
 		filters.ReleaseDate,
 		filters.Link,
+		paginate.PageSize,
+		(paginate.Page - 1) * paginate.PageSize,
 	}
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -63,17 +68,34 @@ func (r *SongRepository) Get(id int) (*entity.Song, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	query := `SELECT id, group, song, release_date, link FROM song WHERE id = $1`
+	query := `SELECT id, group_name, song_name, release_date, link FROM song WHERE id = $1`
 
-	r.db.QueryRowContext(ctx, query, id)
-	return &entity.Song{}, nil
+	row := r.db.QueryRowContext(ctx, query, id)
+
+	var song entity.Song
+	err := row.Scan(
+		&song.ID,
+		&song.Group,
+		&song.Song,
+		&song.ReleaseDate,
+		&song.Link,
+	)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, entity.NotFoundError
+		}
+		return nil, err
+	}
+
+	return &song, nil
 }
 
 func (r *SongRepository) Create(in *entity.CreateSong) (*entity.Song, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	query := `INSERT INTO song(group, song, release_date, link) VALUES ($1, $2, $3, $4) RETURNING id`
+	query := `INSERT INTO song(group_name, song_name, release_date, link) VALUES ($1, $2, $3, $4) RETURNING id`
 
 	args := []any{
 		in.Group,
@@ -81,6 +103,7 @@ func (r *SongRepository) Create(in *entity.CreateSong) (*entity.Song, error) {
 		in.ReleaseDate,
 		in.Link,
 	}
+
 	out := entity.Song{
 		Group:       in.Group,
 		Song:        in.Song,
@@ -100,7 +123,7 @@ func (r *SongRepository) Update(id int, in *entity.Song) (*entity.Song, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	query := `UPDATE song SET group=$1, song=$2, release_date=$3, link=$4 WHERE id=$5`
+	query := `UPDATE song SET group_name=$1, song_name=$2, release_date=$3, link=$4 WHERE id=$5`
 
 	args := []any{
 		in.Group,
@@ -110,7 +133,20 @@ func (r *SongRepository) Update(id int, in *entity.Song) (*entity.Song, error) {
 		id,
 	}
 
-	r.db.ExecContext(ctx, query, args...)
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("failed to check affected rows: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return nil, entity.NotFoundError
+	}
+
 	return in, nil
 }
 
@@ -131,7 +167,7 @@ func (r *SongRepository) Delete(id int) error {
 	}
 
 	if affected == 0 {
-		return errors.New("record not found")
+		return entity.NotFoundError
 	}
 	return nil
 }
@@ -148,7 +184,7 @@ func (r *SongVerseRepository) Create(in *entity.CreateSongVerse) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	query := "INSERT INTO song_text(song_id, order, verse) VALUES ($1, $2, $3) RETURNING id"
+	query := "INSERT INTO song_verse(song_id, order_num, verse) VALUES ($1, $2, $3) RETURNING id"
 
 	args := []any{
 		in.SongID,
@@ -156,19 +192,47 @@ func (r *SongVerseRepository) Create(in *entity.CreateSongVerse) error {
 		in.Verse,
 	}
 
-	result, err := r.db.ExecContext(ctx, query, args...)
+	_, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
-	}
-
-	affected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if affected == 0 {
-		return errors.New("record not found")
 	}
 
 	return nil
+}
+
+func (r *SongVerseRepository) GetText(songID int, paginate entity.Paginator) ([]*entity.SongVerse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	query := `SELECT id, order_num, verse FROM song_verse
+           WHERE song_id=$1 ORDER BY order_num ASC LIMIT $2 OFFSET $3`
+
+	args := []any{
+		songID,
+		paginate.PageSize,
+		(paginate.Page - 1) * paginate.PageSize,
+	}
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var text []*entity.SongVerse
+
+	for rows.Next() {
+		var verse entity.SongVerse
+		err := rows.Scan(
+			&verse.ID,
+			&verse.Order,
+			&verse.Verse,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+		text = append(text, &verse)
+	}
+	return text, nil
 }

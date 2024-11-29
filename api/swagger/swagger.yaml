@@ -1,0 +1,274 @@
+basePath: /
+definitions:
+  entity.Song:
+    properties:
+      group:
+        type: string
+      id:
+        type: integer
+      link:
+        type: string
+      releaseDate:
+        type: string
+      song:
+        type: string
+    type: object
+  entity.SongMinimal:
+    properties:
+      group:
+        type: string
+      song:
+        type: string
+    type: object
+  entity.SongText:
+    properties:
+      text:
+        items:
+          $ref: '#/definitions/entity.SongVerse'
+        type: array
+    type: object
+  entity.SongVerse:
+    properties:
+      id:
+        type: integer
+      order:
+        type: integer
+      verse:
+        type: string
+    type: object
+  entity.Songs:
+    properties:
+      songs:
+        items:
+          $ref: '#/definitions/entity.Song'
+        type: array
+    type: object
+  rest.Err:
+    properties:
+      errorText:
+        type: string
+      message:
+        type: string
+    type: object
+host: localhost:8081
+info:
+  contact: {}
+  title: Song Library API
+  version: "1.0"
+paths:
+  /songs:
+    get:
+      consumes:
+      - application/json
+      description: list songs data
+      parameters:
+      - description: Filter by group name
+        in: query
+        name: group
+        type: string
+      - description: Filter by song name
+        in: query
+        name: song
+        type: string
+      - description: Filter by release-date name
+        in: query
+        name: release-date
+        type: string
+      - description: Filter by link name
+        in: query
+        name: link
+        type: string
+      - description: Limit for paginate
+        in: query
+        name: limit
+        type: integer
+      - description: Page for paginate
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.Songs'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.Err'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.Err'
+      summary: List
+      tags:
+      - song
+    post:
+      consumes:
+      - application/json
+      description: create song
+      parameters:
+      - description: Song struct
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/entity.SongMinimal'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.Song'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.Err'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.Err'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.Err'
+      summary: Create
+      tags:
+      - song
+  /songs/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: delete song data
+      parameters:
+      - description: Song ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.Err'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.Err'
+      summary: Delete
+      tags:
+      - song
+    get:
+      consumes:
+      - application/json
+      description: get song data
+      parameters:
+      - description: Song ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.Song'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.Err'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.Err'
+      summary: Get
+      tags:
+      - song
+    put:
+      consumes:
+      - application/json
+      description: update song data
+      parameters:
+      - description: Song ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Song struct
+        in: body
+        name: input
+        required: true
+        schema:
+          $ref: '#/definitions/entity.Song'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.Song'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.Err'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.Err'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.Err'
+      summary: Update
+      tags:
+      - song
+  /songs/{id}/text:
+    get:
+      consumes:
+      - application/json
+      description: Song list verse
+      parameters:
+      - description: Song ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Limit for paginate
+        in: query
+        name: limit
+        type: integer
+      - description: Page for paginate
+        in: query
+        name: page
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/entity.SongText'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/rest.Err'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/rest.Err'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/rest.Err'
+      summary: Song list verse
+      tags:
+      - song-text
+swagger: "2.0"

@@ -16,11 +16,13 @@ func NewSongInfoRepository(url string) *SongInfoRepository {
 }
 
 func (c *SongInfoRepository) GetInfo(in *entity.SongMinimal) (*entity.SongDetail, error) {
+	const op = "data.external.SongInfoRepository"
+
 	url := fmt.Sprintf("%s/info?group=%s&song=%s", c.ExternalBaseURL, in.Group, in.Song)
 
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", op, err)
 	}
 	defer resp.Body.Close()
 
@@ -28,14 +30,14 @@ func (c *SongInfoRepository) GetInfo(in *entity.SongMinimal) (*entity.SongDetail
 	case http.StatusOK:
 		var songDetail entity.SongDetail
 		if err := json.NewDecoder(resp.Body).Decode(&songDetail); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%s: %w", op, err)
 		}
 		return &songDetail, nil
 
 	case http.StatusBadRequest:
-		return nil, BadRequestError
+		return nil, fmt.Errorf("%s: %w", op, entity.BadRequestError)
 
 	default:
-		return nil, InternalServerError
+		return nil, fmt.Errorf("%s: %w", op, entity.InternalError)
 	}
 }

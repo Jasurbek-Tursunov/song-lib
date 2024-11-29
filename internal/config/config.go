@@ -7,12 +7,13 @@ import (
 )
 
 type Config struct {
-	Port       int    `env:"PORT"`
-	DbHost     string `env:"DB_HOST"`
-	DbPort     int    `env:"DB_PORT"`
-	DbName     string `env:"DB_NAME"`
-	DbUser     string `env:"DB_USER"`
-	DbPassword string `env:"DB_PASSWORD"`
+	Port        int
+	ExternalAPI string
+	DbHost      string
+	DbPort      int
+	DbName      string
+	DbUser      string
+	DbPassword  string
 }
 
 func MustLoad() *Config {
@@ -33,12 +34,13 @@ func MustLoad() *Config {
 	}
 
 	cfg := Config{
-		Port:       int(port),
-		DbHost:     os.Getenv("DB_HOST"),
-		DbPort:     int(dbPort),
-		DbName:     os.Getenv("DB_NAME"),
-		DbUser:     os.Getenv("DB_USER"),
-		DbPassword: os.Getenv("DB_PASSWORD"),
+		Port:        int(port),
+		ExternalAPI: os.Getenv("EXTERNAL_API"),
+		DbHost:      os.Getenv("DB_HOST"),
+		DbPort:      int(dbPort),
+		DbName:      os.Getenv("DB_NAME"),
+		DbUser:      os.Getenv("DB_USER"),
+		DbPassword:  os.Getenv("DB_PASSWORD"),
 	}
 
 	return &cfg

@@ -1,10 +1,16 @@
 package presentation
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"net/http"
+	"os"
+	"os/signal"
 	"song-lib/internal/config"
+	"syscall"
+	"time"
 )
 
 type Server struct {
@@ -29,10 +35,32 @@ func (s *Server) Run() error {
 		Handler: s.router,
 	}
 
-	if err := srv.ListenAndServe(); err != nil {
+	shutdownError := make(chan error)
+
+	go func() {
+		quit := make(chan os.Signal, 1)
+
+		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+		sig := <-quit
+		fmt.Printf("Shutting down server, signal: %s\n", sig.String())
+
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
+
+		shutdownError <- srv.Shutdown(ctx)
+	}()
+
+	fmt.Printf("Server starting on addr: %s\n", srv.Addr)
+	err := srv.ListenAndServe()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("%s: %w", op, err)
 	}
 
-	fmt.Printf("Server started on addr: %s", srv.Addr)
+	err = <-shutdownError
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

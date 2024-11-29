@@ -17,12 +17,14 @@ func Init(cfg *config.Config) {
 		User:     cfg.DbUser,
 		Password: cfg.DbPassword,
 	}
+	
 	db := postgres.MustLoad(&dbCfg)
+	postgres.MustMigrateUp(db)
 
 	// DATA Layer
+	songInfoRepository := external.NewSongInfoRepository(cfg.ExternalAPI)
 	songRepository := database.NewSongRepository(db)
 	songVerseRepository := database.NewSongVerseRepository(db)
-	songInfoRepository := external.NewSongInfoRepository("")
 
 	// DOMAIN Layer
 	songService := usecase.NewSongService(songRepository, songVerseRepository, songInfoRepository)
